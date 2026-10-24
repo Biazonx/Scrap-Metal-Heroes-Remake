@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Super Mario Hack — Play</title>
+  <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; color: #eee; font: 14px system-ui, sans-serif; overflow: hidden; }
+    body { display: flex; flex-direction: column; }
+    header { display: flex; gap: 12px; align-items: center; padding: 10px 14px; background: #1c1c1c; border-bottom: 1px solid #333; }
+    header.hidden { display: none; }
+    header button { padding: 6px 12px; background: #3d6fd6; color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
+    header span { opacity: .7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #stage { flex: 1; position: relative; min-height: 0; background: #000; }
+    #hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; cursor: pointer; }
+    #stage.dragover { outline: 3px dashed #3d6fd6; outline-offset: -12px; }
+    ruffle-player { width: 100%; height: 100%; }
+    #fsButton { position: fixed; bottom: 12px; right: 12px; padding: 6px 10px; background: rgba(0,0,0,.6); color: #eee; border: 1px solid #444; border-radius: 4px; cursor: pointer; opacity: 0; transition: opacity .3s; }
+    body.playing:hover #fsButton { opacity: 1; }
+  </style>
+</head>
+<body>
+  <header id="bar">
+    <button id="open">Open .swf</button>
+    <span id="name">Loading game…</span>
+    <input id="file" type="file" accept=".swf,application/x-shockwave-flash" hidden>
+  </header>
+  <div id="stage">
+    <div id="hint">Loading game… If it does not start, click here to choose a SWF file.</div>
+  </div>
+  <button id="fsButton">Fullscreen (F)</button>
+
+  <script>
+    const bar = document.getElementById('bar');
+    const stage = document.getElementById('stage');
+    const fileInput = document.getElementById('file');
+    const nameEl = document.getElementById('name');
+    const hint = document.getElementById('hint');
+    const fsButton = document.getElementById('fsButton');
+    const ruffle = window.RufflePlayer.newest();
+    let player = null;
+    let currentUrl = null;
+
+    function isFullscreen() {
+      return !!document.fullscreenElement;
+    }
+
+    function toggleFullscreen() {
+      if (isFullscreen()) document.exitFullscreen();
+      else document.documentElement.requestFullscreen().catch(() => {});
+    }
+
+    function showBar(show) {
+      bar.classList.toggle('hidden', !show);
+    }
+
+    function mountPlayer() {
+      if (player) player.remove();
+      player = ruffle.createPlayer();
+      player.style.width = '100%';
+      player.style.height = '100%';
+      stage.appendChild(player);
+      hint.style.display = 'none';
+      document.body.classList.add('playing');
+      return player;
+    }
+
+    function playFile(file) {
+      if (!file) return;
+      if (currentUrl) URL.revokeObjectURL(currentUrl);
+      currentUrl = URL.createObjectURL(file);
+      const game = mountPlayer();
+      nameEl.textContent = file.name;
+      game.load({ url: currentUrl, autoplay: 'on', unmuteOverlay: 'hidden' });
+      showBar(false);
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+
+    function loadHostedGame() {
+      const game = mountPlayer();
+      nameEl.textContent = 'SMH_60fps.swf';
+      // Keep this SWF in the same folder as index.html in your GitHub Pages repository.
+      game.load({ url: './SMH_60fps.swf', autoplay: 'on', unmuteOverlay: 'hidden' })
+        .catch((error) => {
+          console.error('Could not load SMH_60fps.swf:', error);
+          hint.style.display = 'flex';
+          hint.textContent = 'Could not load SMH_60fps.swf. Check that the file is in the same folder as index.html and that its name matches exactly.';
+          showBar(true);
+        });
+      showBar(false);
+    }
+
+    document.getElementById('open').onclick = () => fileInput.click();
+    fileInput.onchange = () => playFile(fileInput.files[0]);
+
+    // Keyboard: F toggles fullscreen, O opens a SWF, B shows/hides the toolbar.
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      const key = e.key.toLowerCase();
+      if (key === 'f') toggleFullscreen();
+      if (key === 'o') fileInput.click();
+      if (key === 'b') showBar(bar.classList.contains('hidden'));
+    });
+
+    fsButton.onclick = toggleFullscreen;
+    hint.onclick = () => fileInput.click();
+
+    document.addEventListener('fullscreenchange', () => {
+      if (!isFullscreen() && player) showBar(true);
+    });
+
+    stage.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      stage.classList.add('dragover');
+    });
+    stage.addEventListener('dragleave', () => stage.classList.remove('dragover'));
+    stage.addEventListener('drop', (e) => {
+      e.preventDefault();
+      stage.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.name.toLowerCase().endsWith('.swf')) playFile(file);
+      else nameEl.textContent = 'Please drop a .swf file';
+    });
+
+    loadHostedGame();
+  </script>
+</body>
+</html>
