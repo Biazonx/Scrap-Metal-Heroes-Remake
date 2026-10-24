@@ -106,8 +106,9 @@
     fsButton.onclick = toggleFullscreen;
     hint.onclick = () => fileInput.click();
 
+    // Keep the toolbar hidden when leaving fullscreen. Press B to show it temporarily.
     document.addEventListener('fullscreenchange', () => {
-      if (!isFullscreen() && player) showBar(true);
+      if (!isFullscreen() && player) showBar(false);
     });
 
     stage.addEventListener('dragover', (e) => {
